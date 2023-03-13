@@ -1,0 +1,53 @@
+---
+title: "STAT 331 final project"
+author: "AJ Kinsella-Johnson, Kyan Wong, Cameron An, Diego Krenz"
+format: 
+  html:
+    self-contained: true
+    code-tools: true
+    toc: true
+    number-sections: true
+editor: source
+execute: 
+  error: true
+  echo: true
+  message: false
+  warning: false
+---
+
+We decided to pick data comparing the proportion of one-year-olds who received the second dose of the measles vaccine (indicating being fully vaccinated), and the proportion of people who have completed primary schooling. We suspect that these variables may be associated through the wealth of a country meaning access to both healthcare and education. 
+
+
+import data and load packages
+```{r}
+library(tidyverse)
+
+measles <- read.csv("mcv2_vacc.csv")
+school <- read.csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
+
+```
+
+
+pivot, join, and clean data:
+
+We decided to rearrange the data so that each observation is for each country in each year (for example: Afghanistan has rows for 2015, 2016, 2017, and 2018). Then data sets were joined so that each country observation has data for both vaccination rate and primary school completion rate. Finally, any rows that didn't have date for both variables were omitted. Years, which were in character X1234 format were converted to numeric 1234 format in case we decided to look at how these rates changed over time.
+
+```{r}
+measles_longer <- measles |>
+  pivot_longer(cols = X1999:X2019, names_to = "years", values_to = "vacc_rate")
+
+school_longer <- school |>
+  pivot_longer(cols = X1969:X2020, names_to = "years", values_to = "completion_rate")
+
+all_data <- measles_longer |>
+  full_join(school_longer) |>
+  mutate(years = as.numeric(str_extract(years, "[:digit:]{4}$"))) |>
+  na.omit()
+
+head(all_data, 10)
+
+```
+Example of first 10 rows of joined and pivoted data:
+
+
+
