@@ -1,5 +1,5 @@
 ---
-title: "STAT 331 final project"
+title: "Exploring Relationships Between Vaccination Rates and Primary School Completion"
 author: "AJ Kinsella-Johnson, Kyan Wong, Cameron An, Diego Krenz"
 format: 
   html:
@@ -15,39 +15,109 @@ execute:
   warning: false
 ---
 
-We decided to pick data comparing the proportion of one-year-olds who received the second dose of the measles vaccine (indicating being fully vaccinated), and the proportion of people who have completed primary schooling. We suspect that these variables may be associated through the wealth of a country meaning access to both healthcare and education. 
+## Introduction
 
+We decided to pick data comparing the proportion of one-year-olds who received the second dose of the measles vaccine (indicating being fully vaccinated), and the proportion of people who have completed primary schooling. We suspect that these variables may be associated through the wealth of a country meaning access to both healthcare and education. This data was collected over 21 years and contains information from 153 countries. Data from [Gapminder](https://www.gapminder.org/data/). 
 
 import data and load packages
+
 ```{r}
 library(tidyverse)
+library(DT)
+library(broom)
 
-measles <- read.csv("mcv2_vacc.csv")
-school <- read.csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
+measles <- read_csv("mcv2_vacc.csv")
+school <- read_csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
+
 
 ```
 
 
-pivot, join, and clean data:
 
-We decided to rearrange the data so that each observation is for each country in each year (for example: Afghanistan has rows for 2015, 2016, 2017, and 2018). Then data sets were joined so that each country observation has data for both vaccination rate and primary school completion rate. Finally, any rows that didn't have date for both variables were omitted. Years, which were in character X1234 format were converted to numeric 1234 format in case we decided to look at how these rates changed over time.
+We decided to rearrange the data so that each observation is for each country in each year (for example: Afghanistan has rows for 2015, 2016, 2017, and 2018). Then data sets were joined so that each country observation has data for both vaccination rate and primary school completion rate. Finally, any rows that didn't have date for both variables were omitted. Years, which were in character X1234 format were converted to numeric 1234 format in case we decided to look at how these rates changed over time. We left values over 100% for primary school completion rate.
+
+Example of first 10 rows of joined and pivoted data:
 
 ```{r}
 measles_longer <- measles |>
-  pivot_longer(cols = X1999:X2019, names_to = "years", values_to = "vacc_rate")
+  pivot_longer(cols = `1999`:`2019`, names_to = "years", values_to = "vacc_rate")
 
 school_longer <- school |>
-  pivot_longer(cols = X1969:X2020, names_to = "years", values_to = "completion_rate")
+  pivot_longer(cols = `1969`:`2020`, names_to = "years", values_to = "completion_rate")
 
 all_data <- measles_longer |>
   full_join(school_longer) |>
-  mutate(years = as.numeric(str_extract(years, "[:digit:]{4}$"))) |>
+  mutate(years = as.numeric(years)) |>
   na.omit()
 
 head(all_data, 10)
 
+n_distinct(all_data$years)
+
+n_distinct(all_data$country)
+
 ```
-Example of first 10 rows of joined and pivoted data:
 
 
+## Linear Regression
+
+
+response variable is vaccination rate, primary school completion is the explanatory variable.
+```{r}
+all_data |>
+  ggplot() +
+  aes(x = completion_rate, y = vacc_rate) +
+  geom_jitter() +
+  geom_smooth(method = "lm") +
+  theme_classic() + 
+  labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate", title = "Primary school completion rates against vaccination rates")
+  
+vax_compl_lm <- all_data |>
+  lm(vacc_rate ~ completion_rate, data = _)
+
+vax_compl_lm
+
+```
+$$\widehat{Vaccination Rate}=39.69 + 0.476*{Completion Rate}$$
+For a country with a primary school completion rate of 0, the predicted vaccination rate for the second measles vaccine would be 39.69%. For every percent increase in primary school completion, the predicted vaccination rate for the second measles vaccine increases by 0.476%.
+
+
+This graph shows that a lot of countries have primary school completion of over 100% for a given year. We chose to include these values due to how the statistic is calculated; proportion of the population who are enrolled in primary school / proportion of the population of the correct age to be enrolled in primary school. This can be over 100% if a significant number of children are enrolled in school earlier than predicted, graduate later than predicted, or are participating in the school system without being citizens of that country, or adults finishing primary education through night classes/something equivalent to the US GED.
+
+```{r}
+all_data |>
+  pivot_longer(cols = vacc_rate:completion_rate, names_to = "type", values_to = "rate") |>
+  ggplot(aes(x = years, y = rate, color = type)) +
+  geom_jitter(alpha=0.2) +
+  geom_smooth(method = 'lm') + 
+  labs(x = "Year", y = "", subtitle = "Percentage of Eligible Population", color="Variable", title = "Rates of Primary School Completion and Vaccination over time") + 
+  scale_color_discrete(labels = c("Primary School \nCompletion Rate", "Vaccination Rate")) + 
+  theme_classic()
+
+```
+
+
+```{r}
+
+# labels <- c("Vaccination Rate", ".fitted variance", ".resid variance")
+# 
+# data <- c(sd(all_data$vacc_rate)^2, sd(augment(vax_compl_lm)$.fitted)^2, sd(augment(vax_compl_lm)$.resid)^2)
+
+augment(vax_compl_lm)
+
+variance_table <- augment(vax_compl_lm) |>
+  summarize(across(vacc_rate:.resid, var)) |>
+  rename("Vaccination Variance" = vacc_rate, "Primary School Variance" = completion_rate, "Fitted Variance" = .fitted, "Residuals Variance" = .resid)
+
+datatable(variance_table) |>
+  formatRound(columns = c("Vaccination Variance", "Primary School Variance", "Fitted Variance", "Residuals Variance"), digits = 3)
+
+
+```
+
+It looks like a lot of the variation in vaccination rates is found  in the residuals (unaccounted for), while the fitted model accounts for a much smaller proportion of the variation in vaccination rates. This suggests that our model is not doing a very good job of explaining the variation in the vaccination rates, and that the variation in vaccination rates could be explained better by other factors.
+
+
+## References
+[Gapminder](https://www.gapminder.org/data/)
 
