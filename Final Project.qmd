@@ -25,6 +25,7 @@ import data and load packages
 library(tidyverse)
 library(DT)
 library(broom)
+library(patchwork)
 
 measles <- read_csv("mcv2_vacc.csv")
 school <- read_csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
@@ -72,10 +73,10 @@ all_data |>
   theme_classic() + 
   labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate", title = "Primary school completion rates against vaccination rates")
   
-vax_compl_lm <- all_data |>
+vacc_compl_lm <- all_data |>
   lm(vacc_rate ~ completion_rate, data = _)
 
-vax_compl_lm
+vacc_compl_lm
 
 ```
 $$\widehat{Vaccination Rate}=39.69 + 0.476*{Completion Rate}$$
@@ -103,9 +104,9 @@ all_data |>
 # 
 # data <- c(sd(all_data$vacc_rate)^2, sd(augment(vax_compl_lm)$.fitted)^2, sd(augment(vax_compl_lm)$.resid)^2)
 
-augment(vax_compl_lm)
+augment(vacc_compl_lm)
 
-variance_table <- augment(vax_compl_lm) |>
+variance_table <- augment(vacc_compl_lm) |>
   summarize(across(vacc_rate:.resid, var)) |>
   rename("Vaccination Variance" = vacc_rate, "Primary School Variance" = completion_rate, "Fitted Variance" = .fitted, "Residuals Variance" = .resid)
 
@@ -116,6 +117,72 @@ datatable(variance_table) |>
 ```
 
 It looks like a lot of the variation in vaccination rates is found  in the residuals (unaccounted for), while the fitted model accounts for a much smaller proportion of the variation in vaccination rates. This suggests that our model is not doing a very good job of explaining the variation in the vaccination rates, and that the variation in vaccination rates could be explained better by other factors.
+
+
+## Visualizing Simulations
+
+```{r}
+set.seed(1234)
+
+predicted_vacc_rate <- predict(vacc_compl_lm)
+sigma_vacc <- sigma(vacc_compl_lm)
+sigma
+
+noise <- function(x, mean = 0, sd){
+  x + rnorm(length(x), mean, sd)
+}
+
+sim_vacc_rate <- tibble(simulated = noise(predicted_vacc_rate, sd = sigma_vacc))
+
+head(sim_vacc_rate)
+
+```
+
+```{r}
+sim_hist <- sim_vacc_rate |>
+  ggplot() +
+  aes(x = simulated) +
+  geom_histogram(binwidth = 5) + 
+  xlim(0, 150)
+
+real_hist <- all_data |>
+  ggplot() +
+  aes(x = vacc_rate) +
+  geom_histogram(binwidth = 5) + 
+  xlim(0, 150)
+
+sim_hist + real_hist
+    
+```
+
+
+```{r}
+# sim_data <- all_data |>
+#   select(vacc_rate, completion_rate) |>
+#   bind_cols(sim_vacc_rate)
+  
+nsim <- 1000
+
+sim_data <- map_dfc(.x = 1:nsim, .f = ~ tibble(sim = noise(predicted_vacc_rate, sd = sigma_vacc))) 
+
+colnames(sim_data) <- colnames(sim_data) |>
+  str_replace(pattern = "\\.\\.\\.", replace = "_")
+
+sim_data <- all_data |>
+  select(vacc_rate) |>
+  bind_cols(sim_data)
+
+sim_rsq <- sim_data |>
+  map(~ lm(vacc_rate ~ .x, data = sim_data)) |>
+  map(glance) |>
+  map_dbl(~ .x$r.squared)
+
+sim_rsq <- sim_rsq[names(sim_rsq) != "vacc_rate"]
+
+ggplot() + 
+  aes(x = sim_rsq) + 
+  geom_histogram()
+```
 
 
 ## References
