@@ -53,7 +53,7 @@ all_data <- measles_longer |>
   mutate(years = as.numeric(years)) |>
   na.omit()
 
-head(all_data, 10)
+datatable(all_data)
 
 n_distinct(all_data$years)
 
@@ -107,7 +107,10 @@ all_data |>
 # 
 # data <- c(sd(all_data$vacc_rate)^2, sd(augment(vax_compl_lm)$.fitted)^2, sd(augment(vax_compl_lm)$.resid)^2)
 
-augment(vacc_compl_lm)
+augmented <- augment(vacc_compl_lm)
+
+datatable(augmented) |>
+  formatRound(columns = names(augmented), digits = 3)
 
 variance_table <- augment(vacc_compl_lm) |>
   summarize(across(vacc_rate:.resid, var)) |>
@@ -130,7 +133,7 @@ set.seed(1234)
 
 predicted_vacc_rate <- predict(vacc_compl_lm)
 sigma_vacc <- sigma(vacc_compl_lm)
-sigma
+
 
 noise <- function(x, mean = 0, sd){
   x + rnorm(length(x), mean, sd)
@@ -138,7 +141,8 @@ noise <- function(x, mean = 0, sd){
 
 sim_vacc_rate <- tibble(simulated = noise(predicted_vacc_rate, sd = sigma_vacc))
 
-head(sim_vacc_rate)
+datatable(sim_vacc_rate) |>
+  formatRound(columns = names(sim_vacc_rate), digits = 3)
 
 ```
 
@@ -147,13 +151,17 @@ sim_hist <- sim_vacc_rate |>
   ggplot() +
   aes(x = simulated) +
   geom_histogram(binwidth = 5) + 
-  xlim(0, 150)
+  xlim(0, 150) + 
+  labs(x = "simulated vaccination rate", y = "", subtitle = "count") + 
+  theme_classic()
 
 real_hist <- all_data |>
   ggplot() +
   aes(x = vacc_rate) +
   geom_histogram(binwidth = 5) + 
-  xlim(0, 150)
+  xlim(0, 150) + 
+  labs(x = "actual vaccination rate", y = "", subtitle = "count") + 
+  theme_classic()
 
 sim_hist + real_hist
     
@@ -161,6 +169,7 @@ sim_hist + real_hist
 
 
 ```{r}
+#| cache: true
 # sim_data <- all_data |>
 #   select(vacc_rate, completion_rate) |>
 #   bind_cols(sim_vacc_rate)
@@ -185,9 +194,11 @@ sim_rsq <- sim_rsq[names(sim_rsq) != "vacc_rate"]
 
 ggplot() + 
   aes(x = sim_rsq) + 
-  geom_histogram()
+  geom_histogram() + 
+  labs(x = "Simulated R-Squared", y = "", subtitle = "count") + 
+  theme_classic()
 ```
-
+The histogram of $R^2$ values shows that all of the 1000 simulated values are below 0.03, so this linear model for this data is a very poor fit.
 
 ## References
 [Gapminder](https://www.gapminder.org/data/)
