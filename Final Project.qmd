@@ -5,6 +5,7 @@ format:
   html:
     self-contained: true
     code-tools: true
+    code-fold: true
     toc: true
     number-sections: true
 editor: source
@@ -26,6 +27,7 @@ library(tidyverse)
 library(DT)
 library(broom)
 library(patchwork)
+library(knitr)
 
 measles <- read_csv("mcv2_vacc.csv")
 school <- read_csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
@@ -61,6 +63,7 @@ n_distinct(all_data$country)
 
 
 ## Linear Regression
+In this part we plot the proportion of the population who complete primary school education against the proportion of infants who have received the second dose of the measles vaccine. We then create a linear model of our data, which will be assessed by simulation in part 3.
 
 
 response variable is vaccination rate, primary school completion is the explanatory variable.
@@ -68,7 +71,7 @@ response variable is vaccination rate, primary school completion is the explanat
 all_data |>
   ggplot() +
   aes(x = completion_rate, y = vacc_rate) +
-  geom_jitter() +
+  geom_jitter(alpha=.1) +
   geom_smooth(method = "lm") +
   theme_classic() + 
   labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate", title = "Primary school completion rates against vaccination rates")
@@ -76,7 +79,7 @@ all_data |>
 vacc_compl_lm <- all_data |>
   lm(vacc_rate ~ completion_rate, data = _)
 
-vacc_compl_lm
+knitr::kable(tidy(vacc_compl_lm))
 
 ```
 $$\widehat{Vaccination Rate}=39.69 + 0.476*{Completion Rate}$$
@@ -120,6 +123,7 @@ It looks like a lot of the variation in vaccination rates is found  in the resid
 
 
 ## Visualizing Simulations
+Here we create histograms of both the proportion of infants who have received the second dose of the measles vaccine, of of the proportion of elegible people who have completed primary education. The linear model we previously created were then compared against data simulated with rnorm() to assess the fit of the model.
 
 ```{r}
 set.seed(1234)
