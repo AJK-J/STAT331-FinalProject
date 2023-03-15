@@ -10,6 +10,7 @@ format:
     number-sections: true
 editor: source
 execute: 
+  cache: true
   error: true
   echo: true
   message: false
@@ -28,6 +29,10 @@ library(DT)
 library(broom)
 library(patchwork)
 library(knitr)
+library(ggplot2)
+library(gganimate)
+library(gapminder)
+library(gifski)
 
 measles <- read_csv("mcv2_vacc.csv")
 school <- read_csv("primary_completion_rate_total_percent_of_relevant_age_group.csv")
@@ -87,6 +92,26 @@ For a country with a primary school completion rate of 0, the predicted vaccinat
 
 
 This graph shows that a lot of countries have primary school completion of over 100% for a given year. We chose to include these values due to how the statistic is calculated; proportion of the population who are enrolled in primary school / proportion of the population of the correct age to be enrolled in primary school. This can be over 100% if a significant number of children are enrolled in school earlier than predicted, graduate later than predicted, or are participating in the school system without being citizens of that country, or adults finishing primary education through night classes/something equivalent to the US GED.
+
+
+```{r}
+
+p <- all_data |>
+  ggplot() +
+  aes(x = completion_rate, y = vacc_rate, size = 8,color = country) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  theme_bw()+
+  labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate") +        transition_time(years) +
+  labs(title = "Year: {frame_time}")+
+  shadow_mark(alpha = 0.3, size = 1)
+
+animate(p, nframes = 21, duration = 30, renderer = gifski_renderer())
+# the animated graph shows that vaccination rate to primary school completion rate as the years go on
+# as the years go on the points from the past years stay there so you can see how the graph populates
+```
+
+
 
 ```{r}
 all_data |>
@@ -169,7 +194,6 @@ sim_hist + real_hist
 
 
 ```{r}
-#| cache: true
 # sim_data <- all_data |>
 #   select(vacc_rate, completion_rate) |>
 #   bind_cols(sim_vacc_rate)
