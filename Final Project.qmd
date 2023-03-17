@@ -48,7 +48,7 @@ Example of first 10 rows of joined and pivoted data:
 
 ```{r}
 measles_longer <- measles |>
-  pivot_longer(cols = `1999`:`2019`, names_to = "years", values_to = "vacc_rate")
+  pivot_longer(cols = `1999`:`2019`, names_to = "years", values_to = "Vaccination Rate")
 
 school_longer <- school |>
   pivot_longer(cols = `1969`:`2020`, names_to = "years", values_to = "completion_rate")
@@ -56,13 +56,10 @@ school_longer <- school |>
 all_data <- measles_longer |>
   full_join(school_longer) |>
   mutate(years = as.numeric(years)) |>
-  na.omit()
+  na.omit() |>
+  rename("Country" = country, "Years" = years, "Vaccination Rate" = , "Completion Rate" = completion_rate)
 
 datatable(all_data)
-
-n_distinct(all_data$years)
-
-n_distinct(all_data$country)
 
 ```
 
@@ -75,14 +72,14 @@ response variable is vaccination rate, primary school completion is the explanat
 ```{r}
 all_data |>
   ggplot() +
-  aes(x = completion_rate, y = vacc_rate) +
+  aes(x = "Completion Rate", y = "Vaccination Rate") +
   geom_jitter(alpha=.1) +
   geom_smooth(method = "lm") +
   theme_classic() + 
   labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate", title = "Primary school completion rates against vaccination rates")
   
 vacc_compl_lm <- all_data |>
-  lm(vacc_rate ~ completion_rate, data = _)
+  lm(`Vaccination Rate` ~ `Completion Rate`, data = _)
 
 knitr::kable(tidy(vacc_compl_lm))
 
@@ -91,18 +88,18 @@ $$\widehat{Vaccination Rate}=39.69 + 0.476*{Completion Rate}$$
 For a country with a primary school completion rate of 0, the predicted vaccination rate for the second measles vaccine would be 39.69%. For every percent increase in primary school completion, the predicted vaccination rate for the second measles vaccine increases by 0.476%.
 
 
-This graph shows that a lot of countries have primary school completion of over 100% for a given year. We chose to include these values due to how the statistic is calculated; proportion of the population who are enrolled in primary school / proportion of the population of the correct age to be enrolled in primary school. This can be over 100% if a significant number of children are enrolled in school earlier than predicted, graduate later than predicted, or are participating in the school system without being citizens of that country, or adults finishing primary education through night classes/something equivalent to the US GED.
+This graph shows that a lot of countries have primary school completion of over 100% for a given year. We chose to include these values due to how the statistic is calculated; proportion of the population who are enrolled in primary school / proportion of the population of the correct age to be enrolled in primary school. This can be slightly over 100% if a significant number of children are enrolled in school earlier than predicted, graduate later than predicted, or are participating in the school system without being citizens of that country, or adults finishing primary education through night classes/something equivalent to the US GED.
 
 
 ```{r}
 
 p <- all_data |>
   ggplot() +
-  aes(x = completion_rate, y = vacc_rate, size = 8,color = country) +
+  aes(x = `Completion Rate`, y = `Vaccination Rate`, size = 8, color = Country) +
   geom_point(show.legend = FALSE, alpha = 0.7) +
   scale_color_viridis_d() +
   theme_bw()+
-  labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate") +        transition_time(years) +
+  labs(x = "Primary School Completion Rate", y = "", subtitle = "Vaccination Rate") +        transition_time(Years) +
   labs(title = "Year: {frame_time}")+
   shadow_mark(alpha = 0.3, size = 1)
 
@@ -110,13 +107,13 @@ animate(p, nframes = 21, duration = 30, renderer = gifski_renderer())
 # the animated graph shows that vaccination rate to primary school completion rate as the years go on
 # as the years go on the points from the past years stay there so you can see how the graph populates
 ```
-We animated a plot of the relationship between primary school completion rate and vaccination rate, with each frame being a new year to show how the relationship changes over time. Each new set of points leaves a marker to show the graph being populated as data was collected.
+We animated a plot of the relationship between primary school completion rate and vaccination rate, with each frame being a new year to show how the relationship changes over time. Each new set of points leaves a marker to show the graph being populated as data was collected. Data points are colored by country.
 
 
 ```{r}
 all_data |>
-  pivot_longer(cols = vacc_rate:completion_rate, names_to = "type", values_to = "rate") |>
-  ggplot(aes(x = years, y = rate, color = type)) +
+  pivot_longer(cols = `Vaccination Rate`:`Completion Rate`, names_to = "type", values_to = "rate") |>
+  ggplot(aes(x = Years, y = rate, color = type)) +
   geom_jitter(alpha=0.2) +
   geom_smooth(method = 'lm') + 
   labs(x = "Year", y = "", subtitle = "Percentage of Eligible Population", color="Variable", title = "Rates of Primary School Completion and Vaccination over time") + 
@@ -129,33 +126,35 @@ all_data |>
 
 ```{r}
 p2 <- all_data |>
-  pivot_longer(cols = vacc_rate:completion_rate, names_to = "type", values_to = "rate") |>
-  ggplot(aes(x = years, y = rate, color = type)) +
+  pivot_longer(cols = `Vaccination Rate`:`Completion Rate`, names_to = "type", values_to = "rate") |>
+  ggplot(aes(x = Years, y = rate, color = type)) +
   geom_jitter(alpha=0.2) +
   labs(x = "Year", y = "", subtitle = "Percentage of Eligible Population", color="Variable", title = "Rates of Primary School Completion and Vaccination over time") + 
   scale_color_discrete(labels = c("Primary School \nCompletion Rate", "Vaccination Rate")) + 
   theme_classic()+
-  transition_time(years) +
+  transition_time(Years) +
   labs(title = "Year: {frame_time}")+
   shadow_mark(alpha = 0.3, size = 1)
 
 animate(p2, nframes = 21, duration = 30, renderer = gifski_renderer())
 ```
 
-Animation over the years for the plot of year vs both primary school completion rate and vaccination rate. Markers are left from each year as the animation moves to the next year so that the praph populates over time.
+Animation over the years for the plot of year vs both primary school completion rate and vaccination rate. Markers are left from each year as the animation moves to the next year so that the graph populates over time.
 
 
 
 ```{r}
 
-augmented <- augment(vacc_compl_lm)
+augmented <- augment(vacc_compl_lm) |>
+  select(`Vaccination Rate`:.resid) |>
+  rename("Vaccination Variance" = `Vaccination Rate`, "Primary School Variance" = `Completion Rate`, "Fitted Variance" = .fitted, "Residuals Variance" = .resid)
 
 datatable(augmented) |>
   formatRound(columns = names(augmented), digits = 3)
 
 variance_table <- augment(vacc_compl_lm) |>
-  summarize(across(vacc_rate:.resid, var)) |>
-  rename("Vaccination Variance" = vacc_rate, "Primary School Variance" = completion_rate, "Fitted Variance" = .fitted, "Residuals Variance" = .resid)
+  summarize(across(`Vaccination Rate`:.resid, var)) |>
+  rename("Vaccination Variance" = `Vaccination Rate`, "Primary School Variance" = `Completion Rate`, "Fitted Variance" = .fitted, "Residuals Variance" = .resid)
 
 datatable(variance_table) |>
   formatRound(columns = c("Vaccination Variance", "Primary School Variance", "Fitted Variance", "Residuals Variance"), digits = 3)
@@ -163,12 +162,12 @@ datatable(variance_table) |>
 
 ```
 
-It looks like a lot of the variation in vaccination rates is found  in the residuals (unaccounted for), while the fitted model accounts for a much smaller proportion of the variation in vaccination rates. This suggests that our model is not doing a very good job of explaining the variation in the vaccination rates, and that the variation in vaccination rates could be explained better by other factors.
+It looks like a lot of the variation in vaccination rates is found  in the residuals (unaccounted for), while the fitted model accounts for a much smaller proportion of the variation in vaccination rates. This suggests that our model is not sufficiently explaining the variation in the vaccination rates, and that the variation in vaccination rates could be explained better by other factors.
 
 
 
 ## Visualizing Simulations
-Here we create histograms of both the proportion of infants who have received the second dose of the measles vaccine, of of the proportion of elegible people who have completed primary education. The linear model we previously created were then compared against data simulated with rnorm() to assess the fit of the model.
+Here we create histograms of both the proportion of infants who have received the second dose of the measles vaccine, and of of the proportion of eligible people who have completed primary education. The linear model we previously created were then compared against simulated data to assess the fit of the model.
 
 ```{r}
 set.seed(1234)
@@ -194,15 +193,15 @@ sim_hist <- sim_vacc_rate |>
   aes(x = simulated) +
   geom_histogram(binwidth = 5) + 
   xlim(0, 150) + 
-  labs(x = "simulated vaccination rate", y = "", subtitle = "count") + 
+  labs(x = "Simulated Vaccination Rate", y = "", subtitle = "count") + 
   theme_classic()
 
 real_hist <- all_data |>
   ggplot() +
-  aes(x = vacc_rate) +
-  geom_histogram(binwidth = 5) + 
+  aes(x = `Vaccination Rate`) +
+  geom_histogram(binwidth = 5) +
   xlim(0, 150) + 
-  labs(x = "actual vaccination rate", y = "", subtitle = "count") + 
+  labs(x = "Actual Vaccination Rate", y = "", subtitle = "count") + 
   theme_classic()
 
 sim_hist + real_hist
@@ -213,7 +212,7 @@ sim_hist + real_hist
 ```{r}
 # sim_data <- all_data |>
 #   select(vacc_rate, completion_rate) |>
-#   bind_cols(sim_vacc_rate)
+#   bind_cols(sim_)
   
 nsim <- 1000
 
@@ -223,23 +222,26 @@ colnames(sim_data) <- colnames(sim_data) |>
   str_replace(pattern = "\\.\\.\\.", replace = "_")
 
 sim_data <- all_data |>
-  select(vacc_rate) |>
+  select(`Vaccination Rate`) |>
   bind_cols(sim_data)
 
 sim_rsq <- sim_data |>
-  map(~ lm(vacc_rate ~ .x, data = sim_data)) |>
+  map(~ lm(`Vaccination Rate` ~ .x, data = sim_data)) |>
   map(glance) |>
   map_dbl(~ .x$r.squared)
 
-sim_rsq <- sim_rsq[names(sim_rsq) != "vacc_rate"]
+sim_rsq <- sim_rsq[names(sim_rsq) != "`Vaccination Rate`"]
 
 ggplot() + 
   aes(x = sim_rsq) + 
-  geom_histogram() + 
+  geom_histogram(binwidth = .002) + 
   labs(x = "Simulated R-Squared", y = "", subtitle = "count") + 
+  xlim(0, 0.035) + 
   theme_classic()
 ```
-The histogram of $R^2$ values shows that all of the 1000 simulated values are below 0.03, so this linear model for this data is a very poor fit.
+The histogram of $R^2$ values shows that all of the 1000 simulated values are below 0.03, so this linear model for this data is a very poor fit. 
+
+In this analysis we compared the vaccination rates for the second dose of the measles vaccine against the proportion of the eligible population enrolled in elementary school. We used that comparison to create a linear model, then we compared simulated data from that linear model against the actual data. The simulated data appeared very different from the actual data, so we can conclude that our model was ineffective at predicting the relationship between these two variables.
 
 ## References
 [Gapminder](https://www.gapminder.org/data/)
